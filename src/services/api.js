@@ -1,7 +1,17 @@
 import { DOCX_MIME } from '../utils/files.js';
 import { getSessionToken } from './supabase.js';
 
-const BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+function getBaseUrl() {
+  const raw = (import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (!raw) return '';
+  let url = raw.replace(/\/+$/, '');
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  return url;
+}
+
+const BASE = getBaseUrl();
 
 export class ApiError extends Error {
   constructor(message, { code = 'ERROR', status = 0 } = {}) {

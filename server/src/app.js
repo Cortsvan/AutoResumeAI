@@ -35,7 +35,13 @@ export function createApp() {
   app.use(
     cors({
       origin(origin, cb) {
-        if (!origin || config.clientOrigins.includes(origin)) return cb(null, true);
+        if (
+          !origin ||
+          config.clientOrigins.includes(origin) ||
+          origin.endsWith('.vercel.app')
+        ) {
+          return cb(null, true);
+        }
         return cb(null, false);
       },
       methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
