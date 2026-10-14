@@ -10,7 +10,7 @@ export function extractJson(text) {
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start === -1 || end <= start) throw new Error('No JSON object found in response.');
-  
+
   const slice = cleaned.slice(start, end + 1);
   try {
     return JSON.parse(slice);
@@ -95,7 +95,7 @@ async function requestStructured(system, messages) {
 export async function runChat({ message, history, context, images = [] }) {
   const system = buildSystemPrompt();
   const userTurn = buildUserTurn({ message, context, maxResumeChars: config.limits.maxResumeChars });
-  
+
   let finalUserContent = userTurn;
   if (Array.isArray(images) && images.length > 0) {
     finalUserContent = [
@@ -130,14 +130,14 @@ export async function runChat({ message, history, context, images = [] }) {
 
   const analysis = data.analysis
     ? {
-        ...data.analysis,
-        matchEstimate: data.analysis.matchEstimate
-          ? {
-              score: Math.round(data.analysis.matchEstimate.score),
-              rationale: data.analysis.matchEstimate.rationale,
-            }
-          : null,
-      }
+      ...data.analysis,
+      matchEstimate: data.analysis.matchEstimate
+        ? {
+          score: Math.round(data.analysis.matchEstimate.score),
+          rationale: data.analysis.matchEstimate.rationale,
+        }
+        : null,
+    }
     : null;
 
   return {

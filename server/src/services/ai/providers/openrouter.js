@@ -49,7 +49,7 @@ export async function verifyModelId(modelId) {
 /**
  * Provider adapter for OpenRouter with token controls and usage extraction.
  */
-export async function complete({ system, messages, maxTokens = 4000, temperature = 0.3, json = true }) {
+export async function complete({ system, messages, maxTokens = 8000, temperature = 0.3, json = true }) {
   const apiKey = config.ai.apiKey;
   const model = config.ai.model || 'deepseek/deepseek-v4.1-flash';
   const timeoutMs = config.ai.timeoutMs || 60000;
@@ -59,8 +59,8 @@ export async function complete({ system, messages, maxTokens = 4000, temperature
     throw new AppError(503, 'AI_NOT_CONFIGURED', 'OPENROUTER_API_KEY is not configured on the server.');
   }
 
-  // Allow up to 4,000 max output tokens for full resume JSON structures
-  const effectiveMaxTokens = Math.min(Number(maxTokens) || 4000, 4000);
+  // Allow up to 8,000 max output tokens for full resume JSON structures
+  const effectiveMaxTokens = Math.min(Number(maxTokens) || 8000, 8000);
 
   const makeBody = (useJsonMode) => {
     const body = {
@@ -68,6 +68,8 @@ export async function complete({ system, messages, maxTokens = 4000, temperature
       messages: [{ role: 'system', content: system }, ...messages],
       max_tokens: effectiveMaxTokens,
       temperature,
+      // For reasoning models (e.g. DeepSeek V4.1 Flash), keep reasoning focused so output tokens aren't consumed by thought traces
+      reasoning: { effort: 'low' },
     };
     if (json && useJsonMode) {
       body.response_format = { type: 'json_object' };
@@ -117,9 +119,45 @@ export async function complete({ system, messages, maxTokens = 4000, temperature
     throw new AppError(502, 'AI_BAD_RESPONSE', 'OpenRouter returned an unreadable response.');
   }
 
-  const text = data?.choices?.[0]?.message?.content;
+  let text = data?.choices?.[0]?.message?.content;
+
+  // Fallback 1: check if output was returned in reasoning or reasoning_content with JSON
   if (typeof text !== 'string' || !text.trim()) {
-    throw new AppError(502, 'AI_BAD_RESPONSE', 'OpenRouter returned an empty response.');
+    const reasoningText = data?.choices?.[0]?.message?.reasoning || data?.choices?.[0]?.message?.reasoning_content;
+    if (typeof reasoningText === 'string' && reasoningText.includes('{')) {
+      text = reasoningText;
+    }
+  }
+
+  // Fallback 2: if response_format json_object produced empty text, retry without response_format constraint
+  if ((typeof text !== 'string' || !text.trim()) && json) {
+    console.warn(`OpenRouter model ${model} returned empty content with response_format json_object. Retrying without json_object constraint...`);
+    const retryRes = await call(false);
+    if (retryRes.ok) {
+      try {
+        const retryData = await retryRes.json();
+        const retryText =
+          retryData?.choices?.[0]?.message?.content ||
+          retryData?.choices?.[0]?.message?.reasoning ||
+          retryData?.choices?.[0]?.message?.reasoning_content;
+        if (typeof retryText === 'string' && retryText.trim()) {
+          text = retryText;
+          data = retryData;
+        }
+      } catch {
+        /* ignore retry json parse error */
+      }
+    }
+  }
+
+  if (typeof text !== 'string' || !text.trim()) {
+    console.error('OpenRouter empty response diagnostics:', {
+      model,
+      finishReason: data?.choices?.[0]?.finish_reason,
+      message: data?.choices?.[0]?.message,
+      usage: data?.usage,
+    });
+    throw new AppError(502, 'AI_BAD_RESPONSE', 'OpenRouter returned an empty response. Please try again.');
   }
 
   const promptTokens = data?.usage?.prompt_tokens || 0;

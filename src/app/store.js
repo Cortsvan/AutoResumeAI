@@ -115,10 +115,18 @@ export async function refreshUserProfile() {
 
 export function updateQuota(quotaPatch) {
   if (!state.auth.quota) return;
+  const isAdmin = Boolean(state.auth.profile?.role === 'admin' || state.auth.quota?.isAdmin || quotaPatch.isAdmin);
+  const isUnlimited = Boolean(isAdmin || state.auth.profile?.is_unlimited || quotaPatch.isUnlimited);
   setState({
     auth: {
       ...state.auth,
-      quota: { ...state.auth.quota, ...quotaPatch },
+      quota: {
+        ...state.auth.quota,
+        ...quotaPatch,
+        isAdmin,
+        isUnlimited,
+        remainingToday: isUnlimited ? null : quotaPatch.remainingToday,
+      },
     },
   });
 }

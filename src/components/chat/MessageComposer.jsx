@@ -4,7 +4,7 @@ import { sendMessage } from '../../services/chatOrchestrator.js';
 import { importDocxFile } from '../../services/resumeRepo.js';
 import { Button } from '../ui/Button.jsx';
 import { Badge } from '../ui/Badge.jsx';
-import { Paperclip, Image as ImageIcon, Send, X, FileText, Target, ShieldCheck } from 'lucide-react';
+import { Paperclip, Image as ImageIcon, Send, X, FileText, Target, ShieldCheck, PlusCircle } from 'lucide-react';
 import { validateDocxFile } from '../../utils/files.js';
 import { processScreenshotFile, extractImagesFromClipboard } from '../../utils/images.js';
 
@@ -13,6 +13,7 @@ export function MessageComposer({
   activeResume,
   onOpenTailorModal,
   onOpenUploadModal,
+  onOpenCreateModal,
 }) {
   const [text, setText] = useState('');
   const [stagedFile, setStagedFile] = useState(null);
@@ -139,13 +140,25 @@ export function MessageComposer({
               </button>
             </Badge>
           ) : (
-            <button
-              onClick={onOpenUploadModal}
-              className="text-[11px] text-accent hover:underline flex items-center gap-1"
-            >
-              <Paperclip className="w-3 h-3" />
-              Attach resume (.docx)
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onOpenUploadModal}
+                className="text-[11px] text-accent hover:underline flex items-center gap-1 font-medium"
+              >
+                <Paperclip className="w-3 h-3" />
+                Attach resume (.docx)
+              </button>
+              <span className="text-line-strong">•</span>
+              <button
+                type="button"
+                onClick={onOpenCreateModal}
+                className="text-[11px] text-accent hover:underline flex items-center gap-1 font-medium"
+              >
+                <PlusCircle className="w-3 h-3" />
+                Create from scratch
+              </button>
+            </div>
           )}
 
           {activeResume?.targetJob?.title && (

@@ -343,36 +343,41 @@ export function Sidebar({
             </div>
 
             {/* Quota Indicator */}
-            <div className="p-2 bg-sunken rounded-md border border-line">
-              <div className="flex items-center justify-between text-[10.5px]">
-                <span className="text-ink-muted">Daily AI Quota</span>
-                {quota?.isUnlimited ? (
-                  <span className="text-accent font-medium flex items-center gap-1">
-                    <InfinityIcon className="w-3 h-3" /> Unlimited
-                  </span>
-                ) : (
-                  <span className="font-semibold text-ink">
-                    {quota?.remainingToday ?? 10} / {quota?.dailyLimit ?? 10} left
-                  </span>
-                )}
-              </div>
-              {!quota?.isUnlimited && (
-                <div className="w-full h-1 bg-paper rounded-full overflow-hidden mt-1.5 border border-line/60">
-                  <div
-                    className="h-full bg-accent transition-all duration-300"
-                    style={{
-                      width: `${Math.max(
-                        0,
-                        Math.min(
-                          100,
-                          (((quota?.remainingToday ?? 10) / (quota?.dailyLimit || 10)) * 100),
-                        ),
-                      )}%`,
-                    }}
-                  />
+            {(() => {
+              const isUnlimitedQuota = Boolean(isAdmin || profile?.is_unlimited || quota?.isUnlimited);
+              return (
+                <div className="p-2 bg-sunken rounded-md border border-line">
+                  <div className="flex items-center justify-between text-[10.5px]">
+                    <span className="text-ink-muted">Daily AI Quota</span>
+                    {isUnlimitedQuota ? (
+                      <span className="text-accent font-medium flex items-center gap-1">
+                        <InfinityIcon className="w-3 h-3" /> Unlimited
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-ink">
+                        {quota?.remainingToday ?? 10} / {quota?.dailyLimit ?? 10} left
+                      </span>
+                    )}
+                  </div>
+                  {!isUnlimitedQuota && (
+                    <div className="w-full h-1 bg-paper rounded-full overflow-hidden mt-1.5 border border-line/60">
+                      <div
+                        className="h-full bg-accent transition-all duration-300"
+                        style={{
+                          width: `${Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              (((quota?.remainingToday ?? 10) / (quota?.dailyLimit || 10)) * 100),
+                            ),
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         )}
       </div>

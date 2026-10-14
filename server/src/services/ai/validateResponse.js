@@ -11,28 +11,81 @@ const rawSuggestion = z.object({
   confirm: z.array(z.string().max(300)).max(6).optional().default([]),
 });
 
-const stringList = z.array(z.string().max(400)).max(20).optional().default([]);
+const stringList = z
+  .union([z.array(z.unknown()), z.string(), z.null()])
+  .optional()
+  .transform((v) => {
+    if (Array.isArray(v)) {
+      return v
+        .map((s) => (typeof s === 'string' ? s.slice(0, 1000) : (typeof s === 'object' && s !== null ? JSON.stringify(s).slice(0, 1000) : String(s || ''))))
+        .filter(Boolean)
+        .slice(0, 50);
+    }
+    if (typeof v === 'string' && v.trim()) return [v.slice(0, 1000)];
+    return [];
+  });
 
-const analysisSchema = z.object({
-  summary: z.string().max(600).optional().default(''),
-  matchEstimate: z
-    .object({ score: z.number().min(0).max(100), rationale: z.string().max(600).default('') })
-    .nullable()
-    .optional()
-    .default(null),
-  strengths: stringList,
-  gaps: stringList,
-  keywordsSupported: stringList,
-  keywordsNotEvidenced: stringList,
-  questions: stringList,
-});
+const analysisSchema = z
+  .union([
+    z.object({
+      summary: z
+        .union([z.string(), z.null()])
+        .optional()
+        .transform((v) => (typeof v === 'string' ? v.slice(0, 4000) : '')),
+      matchEstimate: z
+        .union([
+          z.object({
+            score: z.union([z.number(), z.string()]).transform((s) => {
+              const n = Number(String(s).replace(/[^0-9.]/g, ''));
+              return Number.isFinite(n) ? Math.min(Math.max(0, n), 100) : 0;
+            }),
+            rationale: z
+              .union([z.string(), z.null()])
+              .optional()
+              .transform((v) => (typeof v === 'string' ? v.slice(0, 2000) : '')),
+          }),
+          z.null(),
+        ])
+        .optional()
+        .default(null),
+      strengths: stringList,
+      gaps: stringList,
+      keywordsSupported: stringList,
+      keywordsNotEvidenced: stringList,
+      questions: stringList,
+    }),
+    z.string().transform((str) => ({
+      summary: str.slice(0, 4000),
+      matchEstimate: null,
+      strengths: [],
+      gaps: [],
+      keywordsSupported: [],
+      keywordsNotEvidenced: [],
+      questions: [],
+    })),
+    z.null(),
+  ])
+  .optional()
+  .default(null);
 
 export const aiResponseSchema = z.object({
-  reply: z.string().min(1).max(12000).default('Here is your resume update:'),
-  jobTitle: z.string().max(160).nullable().optional().default(null),
-  jobDescriptionProvided: z.boolean().optional().default(false),
-  needs: z.array(z.string()).optional().default([]),
-  analysis: analysisSchema.nullable().optional().default(null),
+  reply: z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .transform((v) => {
+      if (typeof v === 'string' && v.trim()) return v.trim();
+      return 'Here are your extracted resume details:';
+    }),
+  jobTitle: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => (typeof v === 'string' ? v.slice(0, 160) : null)),
+  jobDescriptionProvided: z.unknown().optional().transform((v) => Boolean(v)),
+  needs: z
+    .union([z.array(z.string()), z.string(), z.null()])
+    .optional()
+    .transform((v) => (Array.isArray(v) ? v : typeof v === 'string' && v ? [v] : [])),
+  analysis: analysisSchema,
   suggestions: z.union([z.array(z.unknown()), z.null()]).optional().transform((v) => (Array.isArray(v) ? v : [])),
   resumeUpdate: z.unknown().optional().default(null),
 });
@@ -152,55 +205,109 @@ export function validateResumeUpdate(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const normalized = { ...raw };
 
+  if (normalized.contact && typeof normalized.contact === 'object') {
+    const rawLinks = Array.isArray(normalized.contact.links) ? normalized.contact.links : [];
+    const links = rawLinks
+      .map((l) => {
+        if (typeof l === 'string') return { label: 'Link', url: l.slice(0, 300) };
+        if (typeof l === 'object' && l !== null) {
+          return {
+            label: String(l.label || l.name || l.title || 'Link').slice(0, 80),
+            url: String(l.url || l.href || l.link || '').slice(0, 300),
+          };
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .slice(0, 8);
+
+    normalized.contact = {
+      name: String(normalized.contact.name || '').slice(0, 120),
+      headline: String(normalized.contact.headline || '').slice(0, 160),
+      email: String(normalized.contact.email || '').slice(0, 160),
+      phone: String(normalized.contact.phone || '').slice(0, 60),
+      location: String(normalized.contact.location || '').slice(0, 160),
+      links,
+    };
+  }
+
+  if (typeof normalized.summary === 'string') {
+    normalized.summary = normalized.summary.slice(0, 2500);
+  } else if (Array.isArray(normalized.summary)) {
+    normalized.summary = normalized.summary.join('\n').slice(0, 2500);
+  }
+
   if (Array.isArray(normalized.skills)) {
-    normalized.skills = normalized.skills.map((s, idx) => ({
+    normalized.skills = normalized.skills.slice(0, 20).map((s, idx) => ({
       id: s?.id || `sk_${idx}`,
-      label: typeof s?.label === 'string' ? s.label : 'Skills',
-      items: Array.isArray(s?.items) ? s.items.join(', ') : (typeof s?.items === 'string' ? s.items : ''),
+      label: String(s?.label || 'Skills').slice(0, 120),
+      items: Array.isArray(s?.items)
+        ? s.items.join(', ').slice(0, 800)
+        : String(s?.items || '').slice(0, 800),
     }));
   }
 
   if (Array.isArray(normalized.experience)) {
-    normalized.experience = normalized.experience.map((e, idx) => ({
+    normalized.experience = normalized.experience.slice(0, 20).map((e, idx) => ({
       id: e?.id || `exp_${idx}`,
-      title: e?.title || '',
-      company: e?.company || '',
-      location: e?.location || '',
-      start: e?.start || '',
-      end: e?.end || '',
-      bullets: Array.isArray(e?.bullets) ? e.bullets : (typeof e?.bullets === 'string' && e.bullets ? [e.bullets] : []),
+      title: String(e?.title || '').slice(0, 160),
+      company: String(e?.company || '').slice(0, 160),
+      location: String(e?.location || '').slice(0, 160),
+      start: String(e?.start || '').slice(0, 40),
+      end: String(e?.end || '').slice(0, 40),
+      bullets: (Array.isArray(e?.bullets) ? e.bullets : (e?.bullets ? [e.bullets] : []))
+        .map((b) => String(b || '').slice(0, 1200))
+        .filter(Boolean)
+        .slice(0, 30),
     }));
   }
 
   if (Array.isArray(normalized.projects)) {
-    normalized.projects = normalized.projects.map((p, idx) => ({
+    normalized.projects = normalized.projects.slice(0, 20).map((p, idx) => ({
       id: p?.id || `proj_${idx}`,
-      name: p?.name || '',
-      link: p?.link || '',
-      tech: p?.tech || '',
-      description: p?.description || '',
-      bullets: Array.isArray(p?.bullets) ? p.bullets : (typeof p?.bullets === 'string' && p.bullets ? [p.bullets] : []),
+      name: String(p?.name || '').slice(0, 160),
+      link: String(p?.link || '').slice(0, 300),
+      tech: String(p?.tech || '').slice(0, 300),
+      description: String(p?.description || '').slice(0, 1200),
+      bullets: (Array.isArray(p?.bullets) ? p.bullets : (p?.bullets ? [p.bullets] : []))
+        .map((b) => String(b || '').slice(0, 1200))
+        .filter(Boolean)
+        .slice(0, 30),
     }));
   }
 
   if (Array.isArray(normalized.education)) {
-    normalized.education = normalized.education.map((ed, idx) => ({
+    normalized.education = normalized.education.slice(0, 10).map((ed, idx) => ({
       id: ed?.id || `edu_${idx}`,
-      school: ed?.school || '',
-      degree: ed?.degree || '',
-      location: ed?.location || '',
-      start: ed?.start || '',
-      end: ed?.end || '',
-      details: Array.isArray(ed?.details) ? ed.details : (typeof ed?.details === 'string' && ed.details ? [ed.details] : []),
+      school: String(ed?.school || '').slice(0, 200),
+      degree: String(ed?.degree || '').slice(0, 200),
+      location: String(ed?.location || '').slice(0, 160),
+      start: String(ed?.start || '').slice(0, 40),
+      end: String(ed?.end || '').slice(0, 40),
+      details: (Array.isArray(ed?.details) ? ed.details : (ed?.details ? [ed.details] : []))
+        .map((d) => String(d || '').slice(0, 1200))
+        .filter(Boolean)
+        .slice(0, 30),
     }));
   }
 
   if (Array.isArray(normalized.certifications)) {
-    normalized.certifications = normalized.certifications.map((c, idx) => ({
+    normalized.certifications = normalized.certifications.slice(0, 20).map((c, idx) => ({
       id: c?.id || `cert_${idx}`,
-      name: c?.name || '',
-      issuer: c?.issuer || '',
-      date: c?.date || '',
+      name: String(c?.name || '').slice(0, 200),
+      issuer: String(c?.issuer || '').slice(0, 200),
+      date: String(c?.date || '').slice(0, 60),
+    }));
+  }
+
+  if (Array.isArray(normalized.additional)) {
+    normalized.additional = normalized.additional.slice(0, 8).map((a, idx) => ({
+      id: a?.id || `add_${idx}`,
+      title: String(a?.title || '').slice(0, 120),
+      bullets: (Array.isArray(a?.bullets) ? a.bullets : (a?.bullets ? [a.bullets] : []))
+        .map((b) => String(b || '').slice(0, 1200))
+        .filter(Boolean)
+        .slice(0, 30),
     }));
   }
 
@@ -210,7 +317,11 @@ export function validateResumeUpdate(raw) {
   for (const key of Object.keys(shape)) {
     if (!(key in normalized)) continue;
     const parsed = shape[key].safeParse(normalized[key]);
-    if (parsed.success) result[key] = parsed.data;
+    if (parsed.success) {
+      result[key] = parsed.data;
+    } else {
+      console.warn(`resumeUpdate field "${key}" failed validation:`, parsed.error.issues);
+    }
   }
   return Object.keys(result).length ? result : null;
 }

@@ -6,33 +6,33 @@ const bullets = z.array(z.string().max(1200)).max(30).default([]);
 export const resumeDataSchema = z.object({
   contact: z
     .object({
-      name: str(120),
-      headline: str(160),
+      name: str(160),
+      headline: str(200),
       email: str(160),
-      phone: str(60),
-      location: str(160),
-      links: z.array(z.object({ label: str(80), url: str(300) })).max(8).default([]),
+      phone: str(80),
+      location: str(200),
+      links: z.array(z.object({ label: str(100), url: str(500) })).max(15).default([]),
     })
     .prefault({}),
-  summary: str(2500),
+  summary: str(4000),
   experience: z
-    .array(z.object({ id: str(40), title: str(160), company: str(160), location: str(160), start: str(40), end: str(40), bullets }))
-    .max(20)
+    .array(z.object({ id: str(60), title: str(200), company: str(200), location: str(200), start: str(60), end: str(60), bullets }))
+    .max(30)
     .default([]),
   education: z
-    .array(z.object({ id: str(40), school: str(200), degree: str(200), location: str(160), start: str(40), end: str(40), details: bullets }))
-    .max(10)
+    .array(z.object({ id: str(60), school: str(250), degree: str(250), location: str(200), start: str(60), end: str(60), details: bullets }))
+    .max(15)
     .default([]),
   projects: z
-    .array(z.object({ id: str(40), name: str(160), link: str(300), tech: str(300), description: str(1200), bullets }))
-    .max(20)
+    .array(z.object({ id: str(60), name: str(200), link: str(500), tech: str(500), description: str(2500), bullets }))
+    .max(30)
     .default([]),
-  skills: z.array(z.object({ id: str(40), label: str(120), items: str(800) })).max(20).default([]),
+  skills: z.array(z.object({ id: str(60), label: str(160), items: str(2000) })).max(30).default([]),
   certifications: z
-    .array(z.object({ id: str(40), name: str(200), issuer: str(200), date: str(60) }))
-    .max(20)
+    .array(z.object({ id: str(60), name: str(250), issuer: str(250), date: str(80) }))
+    .max(30)
     .default([]),
-  additional: z.array(z.object({ id: str(40), title: str(120), bullets })).max(8).default([]),
+  additional: z.array(z.object({ id: str(60), title: str(160), bullets })).max(12).default([]),
 });
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact'];

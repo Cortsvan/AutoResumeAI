@@ -164,7 +164,13 @@ export function ChatPanel({
           </div>
         ) : (
           conversation.messages.map((m) => (
-            <MessageItem key={m.id} message={m} conversationId={conversation.id} />
+            <MessageItem
+              key={m.id}
+              message={m}
+              conversationId={conversation.id}
+              onOpenCreateModal={onOpenCreateModal}
+              onOpenUploadModal={onOpenUploadModal}
+            />
           ))
         )}
 
@@ -189,6 +195,7 @@ export function ChatPanel({
         activeResume={activeResume}
         onOpenTailorModal={onOpenTailorModal}
         onOpenUploadModal={onOpenUploadModal}
+        onOpenCreateModal={onOpenCreateModal}
       />
     </div>
   );

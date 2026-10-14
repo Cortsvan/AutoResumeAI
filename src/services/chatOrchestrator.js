@@ -8,6 +8,7 @@ import {
   toast,
   setAuthModalOpen,
   updateQuota,
+  setUi,
 } from '../app/store.js';
 import { api, ApiError } from './api.js';
 import { getFields, applyEditsToResume, applyResumeDataUpdate, createCreatedResume } from './resumeRepo.js';
@@ -174,11 +175,22 @@ export async function sendMessage(conversationId, text, attachedDocxFile = null,
       });
     }
 
-    // If user has no resume attached yet, but provided screenshots: auto-bootstrap a draft resume
-    if (!activeResume && hasImages) {
+    // Detect intent to create a resume from scratch or user supplying their background details
+    const isScratchIntent =
+      !activeResume &&
+      (/(create|build|start|make|draft).*(scratch|resume|cv)/i.test(userMessageText) ||
+        /(how do i create|from scratch|new resume|help me (write|build|make))/i.test(userMessageText) ||
+        /(i graduated?|i study|i work|my experience|my name is|i have a degree|i am an?|degree in)/i.test(userMessageText));
+
+    // If user has no resume attached yet, but provided screenshots or expressed scratch intent: auto-bootstrap a draft resume
+    if (!activeResume && (hasImages || isScratchIntent)) {
       try {
+        const titleMatch = userMessageText.match(
+          /(?:for|as|a|an)\s+([A-Z][A-Za-z0-9\s/]+(?:Engineer|Developer|Tester|Analyst|Designer|Manager|Specialist|Associate|Intern))/i,
+        );
+        const role = titleMatch ? titleMatch[1].trim() : 'Draft Resume';
         const newResume = await createCreatedResume({
-          name: 'Resume from Screenshot',
+          name: hasImages ? 'Resume from Screenshot' : role,
           data: emptyResumeData(),
         });
         activeResume = newResume;
@@ -189,9 +201,10 @@ export async function sendMessage(conversationId, text, attachedDocxFile = null,
             creating: true,
           },
         });
-        toast('Created resume draft from screenshot.', 'info');
+        setUi({ focusResumeId: newResume.id, previewOpen: true, mobileView: 'preview' });
+        toast(hasImages ? 'Created resume draft from screenshot.' : 'Started new resume draft from scratch.', 'success');
       } catch (err) {
-        console.warn('Could not auto-create resume draft from screenshot:', err);
+        console.warn('Could not auto-create resume draft:', err);
       }
     }
 

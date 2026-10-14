@@ -6,14 +6,14 @@ import { Badge } from '../ui/Badge.jsx';
 import { Button } from '../ui/Button.jsx';
 import { ImageModal } from '../ui/ImageModal.jsx';
 import { formatBytes, relativeTime } from '../../utils/format.js';
-import { FileText, CheckCheck, Bot, User, Info, Maximize2 } from 'lucide-react';
+import { FileText, CheckCheck, Bot, User, Info, Maximize2, PlusCircle } from 'lucide-react';
 import {
   acceptSuggestion,
   rejectSuggestion,
   acceptAllSuggestions,
 } from '../../services/chatOrchestrator.js';
 
-export function MessageItem({ message, conversationId }) {
+export function MessageItem({ message, conversationId, onOpenCreateModal, onOpenUploadModal }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const isUser = message.role === 'user';
   const suggestions = message.suggestions || [];
@@ -102,6 +102,34 @@ export function MessageItem({ message, conversationId }) {
 
           {/* Markdown message body */}
           <LiteMarkdown text={message.content} />
+
+          {/* Action buttons when a resume is needed */}
+          {!isUser && message.needs?.includes('resume') && (
+            <div className="mt-3.5 pt-3 border-t border-line flex flex-wrap items-center gap-2">
+              {onOpenCreateModal && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={PlusCircle}
+                  onClick={onOpenCreateModal}
+                  className="text-xs !h-8"
+                >
+                  Create from Scratch
+                </Button>
+              )}
+              {onOpenUploadModal && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon={FileText}
+                  onClick={onOpenUploadModal}
+                  className="text-xs !h-8"
+                >
+                  Upload DOCX Resume
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Analysis Card */}

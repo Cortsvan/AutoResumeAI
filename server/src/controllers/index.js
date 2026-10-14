@@ -88,14 +88,17 @@ export async function chat(req, res) {
     requestType: 'chat',
   });
 
+  const isAdminUser = Boolean(reservation.isAdmin || req.user?.profile?.role === 'admin');
+  const isUnlimitedQuota = Boolean(reservation.isUnlimited || isAdminUser);
+
   res.json({
     ...result,
     quota: {
       dailyLimit: reservation.dailyLimit,
-      isUnlimited: reservation.isUnlimited,
-      isAdmin: reservation.isAdmin,
+      isUnlimited: isUnlimitedQuota,
+      isAdmin: isAdminUser,
       todayUsed: reservation.todayUsed + 1,
-      remainingToday: reservation.isUnlimited ? null : Math.max(0, reservation.dailyLimit - (reservation.todayUsed + 1)),
+      remainingToday: isUnlimitedQuota ? null : Math.max(0, reservation.dailyLimit - (reservation.todayUsed + 1)),
     },
   });
 }

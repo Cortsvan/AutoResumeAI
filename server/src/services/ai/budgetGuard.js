@@ -83,7 +83,7 @@ export async function reserveQuotaAndBudget({ userId, estimatedCost = 0.005 }) {
 
     return {
       isAdmin: Boolean(data.is_admin),
-      isUnlimited: Boolean(data.is_unlimited),
+      isUnlimited: Boolean(data.is_unlimited || data.is_admin),
       dailyLimit: data.daily_limit,
       todayUsed: data.today_used,
       reservedCost: Number(data.reserved_cost || estimatedCost),
