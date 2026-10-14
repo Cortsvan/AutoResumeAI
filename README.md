@@ -195,9 +195,9 @@ Both **Terms of Service** and **Privacy Policy** are accessible directly in the 
 Create a `.env` file in the project root directory:
 
 ```bash
-# Supabase Client Configuration
+# Supabase Frontend Configuration (Publishable / Anon Key)
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_SUPABASE_ANON_KEY=your-supabase-publishable-anon-key
 
 # API Server URL (leave empty or set for custom hosting)
 VITE_API_URL=http://localhost:8787
@@ -216,9 +216,9 @@ AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 OPENROUTER_MODEL=deepseek/deepseek-v4.1-flash
 
-# Supabase Server-Side Admin Configuration
+# Supabase Backend Configuration (Secret / Service Role Key - Never expose to client)
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-secret-service-role-key
 
 # Universal Global AI Spending Protection
 GLOBAL_BUDGET_USD=5.00
