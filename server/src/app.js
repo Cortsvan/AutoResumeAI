@@ -25,7 +25,7 @@ export function createApp() {
           'img-src': ["'self'", 'data:', 'blob:'],
           'style-src': ["'self'", "'unsafe-inline'"],
           'font-src': ["'self'", 'data:'],
-          'connect-src': ["'self'", 'https://*.supabase.co', 'https://openrouter.ai'],
+          'connect-src': ["'self'", 'https://*.supabase.co'],
           'upgrade-insecure-requests': null,
         },
       },

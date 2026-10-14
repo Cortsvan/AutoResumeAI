@@ -25,8 +25,9 @@ function parseBody(schema, body) {
 }
 
 export async function getConfig(req, res) {
+  const isAdmin = Boolean(req.profile?.role === 'admin' || req.user?.profile?.role === 'admin');
   let budgetStatus = null;
-  if (req.user?.profile?.role === 'admin') {
+  if (isAdmin) {
     budgetStatus = await getGlobalBudgetStatus();
   }
 
@@ -36,12 +37,18 @@ export async function getConfig(req, res) {
       required: true,
       supabaseConfigured: isSupabaseConfigured(),
     },
-    budget: budgetStatus || {
-      totalBudgetUsd: config.budget.totalBudgetUsd,
-      thresholdUsd: config.budget.thresholdUsd,
-      defaultDailyLimit: config.budget.defaultDailyLimit,
-      maxOutputTokens: config.budget.maxOutputTokens,
-    },
+    budget: isAdmin
+      ? (budgetStatus || {
+          totalBudgetUsd: config.budget.totalBudgetUsd,
+          thresholdUsd: config.budget.thresholdUsd,
+          reservedBalanceUsd: config.budget.reservedBalanceUsd,
+          defaultDailyLimit: config.budget.defaultDailyLimit,
+          maxOutputTokens: config.budget.maxOutputTokens,
+        })
+      : {
+          defaultDailyLimit: config.budget.defaultDailyLimit,
+          maxOutputTokens: config.budget.maxOutputTokens,
+        },
     limits: {
       maxUploadMb: Math.round(config.limits.maxUploadBytes / 1024 / 1024),
       maxMessageChars: config.limits.maxMessageChars,
