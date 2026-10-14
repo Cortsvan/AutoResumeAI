@@ -60,6 +60,7 @@ Unlike traditional tools that convert documents to lossy HTML or plain text, Aut
 
 ```
 AutoResumeAI/
+├── api/                          # Vercel Serverless Function entrypoint
 ├── src/                          # React + Vite Client Application
 │   ├── app/                      # Reactive store, Supabase client & global state
 │   ├── components/
@@ -69,12 +70,12 @@ AutoResumeAI/
 │   │   ├── modals/               # Auth, Upload, Tailor, Redesign, Terms, Privacy
 │   │   ├── preview/              # DOCX viewer, run-level diff tracker, structured editor
 │   │   └── ui/                   # Reusable buttons, badges, modals, toast alerts
-│   ├── pages/                    # LandingPage, WorkspacePage
+│   ├── pages/                    # LandingPage, WorkspacePage, AdminDashboard
 │   └── services/                 # IndexedDB client, API service layer, chat orchestrator
 ├── server/                       # Node.js + Express Hardened API Server
 │   ├── src/
 │   │   ├── config/               # App configuration, rate limits, spending thresholds
-│   │   ├── controllers/          # Controllers for chat, document inspect/apply, generation
+│   │   ├── controllers/          # Controllers for chat, documents, and admin dashboard
 │   │   ├── middleware/           # Rate limiting, auth verification, quota guard, spending guard
 │   │   ├── services/
 │   │   │   ├── ai/               # OpenRouter / OpenAI / Anthropic clients & validation
@@ -86,7 +87,7 @@ AutoResumeAI/
 │       ├── securityAudit.js      # 14-point automated security & defense test suite
 │       └── smoke.js              # DOCX OpenXML roundtrip integrity verification
 ├── shared/                       # Pure shared algorithms (word-level textDiff)
-├── supabase-schema.sql           # Database schema, triggers, and Row Level Security (RLS)
+├── vercel.json                   # Vercel build routing and serverless function rewrites
 └── README.md
 ```
 
@@ -199,8 +200,9 @@ Create a `.env` file in the project root directory:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-publishable-anon-key
 
-# API Server URL (leave empty or set for custom hosting)
-VITE_API_URL=http://localhost:8787
+# API Server URL (leave empty for same-origin, or set for custom backend)
+# IMPORTANT: Remote hosts (like Railway) must include https://
+VITE_API_BASE_URL=http://localhost:8787
 ```
 
 ### 2. Backend Configuration (`server/.env`)
@@ -225,9 +227,9 @@ GLOBAL_BUDGET_USD=5.00
 GLOBAL_THRESHOLD_USD=4.00
 GLOBAL_RESERVED_USD=1.00
 
-# User Quotas
+# User Quotas & Token Capacities
 DEFAULT_DAILY_REQUEST_LIMIT=10
-MAX_OUTPUT_TOKENS=1500
+MAX_OUTPUT_TOKENS=8000
 
 # File Upload Limit
 MAX_UPLOAD_MB=5
@@ -243,16 +245,21 @@ Setting up the database takes under two minutes using the Supabase Web Console:
 
 1. Log in to your [Supabase Dashboard](https://supabase.com/dashboard) and open your project.
 2. Click **SQL Editor** in the left navigation sidebar.
-3. Open the file [`supabase-schema.sql`](file:///c:/Users/jovco/Documents/Development/AutoResumeAI/supabase-schema.sql) in your workspace root.
-4. Copy the entire contents and paste them into the Supabase SQL Editor.
-5. Click **Run**.
+3. Paste and run your project database schema SQL script.
+4. Promote your own registered administrator account in the SQL Editor:
+   ```sql
+   SELECT public.make_admin('your-registered-email@example.com');
+   ```
 
 ### What this sets up:
-- `public.profiles`: Stores user details (`first_name`, `last_name`, `full_name`, `role`, `is_unlimited`, `daily_ai_limit`).
-- `public.ai_daily_usage`: Tracks daily API calls per user account.
-- `public.ai_global_metrics`: Universal ledger tracking global spending and cumulative tokens.
+- `public.profiles`: User details (`email`, `first_name`, `last_name`, `role`, `account_status`, `is_unlimited`, `daily_limit`).
+- `public.daily_usage`: Tracks daily API calls and cost per user account.
+- `public.ai_usage_logs`: Request-level token, model, and cost logging.
+- `public.global_budget`: Universal ledger tracking global spending, thresholds, and inflight reserve.
+- `public.admin_audit_logs`: Immutable audit trails for all administrative actions.
+- `public.resumes` & `public.conversations`: User cloud document and chat history storage.
 - `public.handle_new_user()`: Automated trigger creating a profile whenever a new user registers.
-- **Row Level Security (RLS)**: Enforces that users can only read and write their own data, while service roles handle administrative quota operations.
+- **Row Level Security (RLS) & SQL Grants**: Enforces that users can only read and write their own data, while service roles handle administrative quota and budget operations. Sensitive RPC functions are revoked from client execution.
 
 ---
 
@@ -285,17 +292,55 @@ npm run dev:web
 
 ## Production Deployment
 
-### 1. Build the Frontend
-```bash
-npm run build
-```
-This compiles the optimized production bundle into `dist/`.
+### Option 1: Frontend on Vercel + Backend on Railway (Recommended)
 
-### 2. Start the Production Server
-```bash
-npm start
-```
-The Express backend serves the static frontend assets from `dist/` and hosts the API endpoints on port `8787` (or the configured `PORT`).
+This split architecture gives you instant global CDN delivery for the React app on Vercel with a resilient, persistent Node.js environment for OpenXML document processing and OpenRouter API calls on Railway.
+
+#### 1. Deploy the Backend to Railway
+1. Push your repository to GitHub.
+2. In Railway, click **New Project** > **Deploy from GitHub repo**.
+3. Set the **Root Directory** to `server` (or leave root with start command `npm start --workspace server`).
+4. In Railway **Variables**, configure:
+   - `PORT`: `8787` (or Railway default)
+   - `NODE_ENV`: `production`
+   - `CLIENT_ORIGIN`: `https://your-app.vercel.app` *(your Vercel production domain)*
+   - `OPENROUTER_API_KEY`: `your_openrouter_api_key`
+   - `OPENROUTER_MODEL`: `deepseek/deepseek-v4.1-flash`
+   - `SUPABASE_URL`: `https://your-project.supabase.co`
+   - `SUPABASE_SERVICE_ROLE_KEY`: `your_supabase_secret_service_role_key`
+   - `GLOBAL_BUDGET_USD`: `5.00`
+   - `GLOBAL_THRESHOLD_USD`: `4.00`
+   - `GLOBAL_RESERVED_USD`: `1.00`
+5. Note your public Railway domain: `https://your-backend.up.railway.app`.
+
+#### 2. Deploy the Frontend to Vercel
+1. In Vercel, click **Add New...** > **Project** and import your GitHub repository.
+2. Configure project settings:
+   - **Root Directory**: `./` *(default root)*
+   - **Framework Preset**: **Vite**
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. In **Environment Variables**, add:
+   - `VITE_SUPABASE_URL`: `https://your-project.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY`: `your-supabase-publishable-anon-key`
+   - `VITE_API_BASE_URL`: `https://your-backend.up.railway.app` *(must include `https://`, no trailing slash)*
+4. Click **Deploy**.
+
+---
+
+### Option 2: Single-Instance Node.js Server
+
+You can also host both the static frontend and the API server together on a single VPS, Docker container, or cloud host:
+
+1. **Build the Frontend**:
+   ```bash
+   npm run build
+   ```
+2. **Start the Production Server**:
+   ```bash
+   npm start
+   ```
+The Express backend automatically serves the pre-built static bundle from `dist/` and hosts the API endpoints on port `8787` (or your configured `PORT`).
 
 ---
 
