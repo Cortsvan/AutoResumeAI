@@ -75,6 +75,9 @@ export function LandingPage({
             <span className="font-semibold text-sm tracking-tight text-ink">
               {brand.name}
             </span>
+            <Badge variant="accent" size="xs" className="uppercase tracking-wider font-bold text-[10px] px-1.5 py-0.5">
+              Beta
+            </Badge>
           </div>
 
           <nav className="flex items-center gap-3">
@@ -115,10 +118,15 @@ export function LandingPage({
       {/* Hero Section */}
       <section className="pt-16 pb-12 sm:pt-24 sm:pb-20 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center space-y-5">
-          <Badge variant="accent" size="md" className="mx-auto gap-1.5 py-1 px-3">
-            <ShieldCheck className="w-3.5 h-3.5 text-accent" />
-            <span>Pure DOCX Processing · Keep Your Original Design</span>
-          </Badge>
+          <div className="inline-flex items-center gap-2 p-1 pl-1.5 pr-3 rounded-full bg-accent-soft border border-accent-line text-xs mx-auto animate-fade-in">
+            <span className="px-2 py-0.5 rounded-full bg-accent text-paper font-bold text-[10px] uppercase tracking-wider">
+              Beta Version
+            </span>
+            <span className="text-accent font-medium flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Pure DOCX Processing · Keep Your Original Design
+            </span>
+          </div>
 
           <h1 className="text-3xl sm:text-5xl font-serif font-bold text-ink tracking-tight leading-[1.15]">
             Improve your resume without losing its original design.
