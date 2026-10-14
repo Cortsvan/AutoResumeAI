@@ -34,6 +34,7 @@ let state = {
     busy: {}, // conversationId -> boolean
     consentRequest: null,
     authModalOpen: false,
+    authModalMode: 'login', // 'login' | 'register' | 'forgot' | 'reset'
   },
   toasts: [],
 };
@@ -88,8 +89,12 @@ export function setBusy(conversationId, busy) {
 
 /* ------------------------------ Auth ------------------------------ */
 
-export function setAuthModalOpen(open) {
-  setUi({ authModalOpen: open });
+export function setAuthModalOpen(open, mode = 'login') {
+  setUi({ authModalOpen: open, ...(open ? { authModalMode: mode } : {}) });
+}
+
+export function setAuthModalMode(mode) {
+  setUi({ authModalMode: mode });
 }
 
 export async function refreshUserProfile() {
@@ -153,6 +158,25 @@ export async function signUp(email, password, metadata = {}) {
         full_name: `${metadata.firstName?.trim() || ''} ${metadata.lastName?.trim() || ''}`.trim(),
       },
     },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function resetPassword(email) {
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function updateUserPassword(newPassword) {
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword,
   });
   if (error) throw error;
   return data;
@@ -240,6 +264,16 @@ export async function initStore() {
     supabase.auth.onAuthStateChange(async (event, session) => {
       const user = session?.user || null;
       const currentUser = state.auth.user;
+
+      if (event === 'PASSWORD_RECOVERY') {
+        setState({
+          ui: {
+            ...state.ui,
+            authModalOpen: true,
+            authModalMode: 'reset',
+          },
+        });
+      }
 
       if (user?.id !== currentUser?.id) {
         // User changed or logged in/out -> switch isolated storage
