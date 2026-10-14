@@ -49,11 +49,6 @@ Unlike traditional tools that convert documents to lossy HTML or plain text, Aut
    - Instant visual rendering of native `.docx` files directly in the browser via `docx-preview`.
    - Full version history checkpoints with one-click undo/redo for all accepted edits.
    - Export standard, genuine `.docx` files ready for direct employer submission or ATS scanning.
-
-6. **Out-of-the-Box Demo Mode**:
-   - Operates in complete **Demo Mode** without requiring any paid AI keys.
-   - Simulates realistic, professional suggestion diffs and allows full DOCX editing, preview, and download.
-
 ---
 
 ## Architecture & Tech Stack
