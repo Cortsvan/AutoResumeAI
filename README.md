@@ -104,7 +104,7 @@ To prevent runaway billing and API overages, AutoResumeAI incorporates a **three
 ┌─────────────────────────────────────────────────────────────┐
 │ Tier 1: User-Level Quotas                                  │
 │ - Standard Users: 10 requests / 24-hr UTC window            │
-│ - Max Output Tokens: 1,500 tokens per suggestion            │
+│ - Max Output Tokens: 8000 tokens per suggestion            │
 │ - Admins / Unlimited Accounts: Daily personal limit bypassed│
 └─────────────────────────────────────────────────────────────┘
           │ (Quota OK)
