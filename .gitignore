@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.*
+.env.local
+server/.env
+server/.env.*
+server/.env.local
+*.log
+.DS_Store
+*.docx.tmp
+
