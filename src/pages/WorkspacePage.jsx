@@ -43,39 +43,31 @@ export function WorkspacePage() {
   // Ensure an active conversation exists
   useEffect(() => {
     if (conversations.length === 0) {
-      const created = createConversation();
+      const created = createConversation({ context: { activeResumeId: null, creating: false } });
       setActiveConversationId(created.id);
     } else if (!activeConversationId || !conversations.some((c) => c.id === activeConversationId)) {
       setActiveConversationId(conversations[0].id);
     }
   }, [conversations, activeConversationId]);
 
-  // Keep activeResumeId synced with current conversation context or latest uploaded resume
+  // The resume linked to the currently active conversation (if any)
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
-  const currentResume =
-    resumes.find((r) => r.id === (activeConversation?.context?.activeResumeId || activeResumeId)) ||
-    resumes[0] ||
-    null;
+  const convResumeId = activeConversation?.context?.activeResumeId || null;
+  const currentResume = convResumeId ? resumes.find((r) => r.id === convResumeId) || null : null;
 
   const handleSelectConversation = (id) => {
     setActiveConversationId(id);
     const conv = conversations.find((c) => c.id === id);
-    if (conv?.context?.activeResumeId) {
-      setActiveResumeId(conv.context.activeResumeId);
-    }
-    setUi({ sidebarOpen: false });
+    setUi({ sidebarOpen: false, focusResumeId: conv?.context?.activeResumeId || null });
   };
 
   const handleSelectResume = (id) => {
-    setActiveResumeId(id);
-    if (activeConversation) {
-      // Connect to conversation context
-      const conv = conversations.find((c) => c.id === activeConversationId);
-      if (conv) {
-        conv.context.activeResumeId = id;
-      }
+    if (activeConversationId) {
+      updateConversation(activeConversationId, (c) => ({
+        context: { ...c.context, activeResumeId: id },
+      }));
     }
-    setUi({ sidebarOpen: false, focusResumeId: id });
+    setUi({ sidebarOpen: false, focusResumeId: id, previewOpen: true });
   };
 
   const handleOpenRedesign = (resume) => {

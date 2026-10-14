@@ -13,8 +13,21 @@ const fieldSchema = z.object({
   editable: z.boolean().optional().default(true),
 });
 
+export const chatImageSchema = z.union([
+  z.string().max(10_000_000),
+  z.object({
+    id: z.string().optional(),
+    dataUrl: z.string().max(10_000_000),
+    name: z.string().max(200).optional(),
+    size: z.number().optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  }),
+]);
+
 export const chatRequestSchema = z.object({
   message: z.string().trim().min(1).max(maxMessageChars),
+  images: z.array(chatImageSchema).max(5).optional().default([]),
   history: z
     .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(6000) }))
     .max(16)

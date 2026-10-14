@@ -50,7 +50,7 @@ export function Sidebar({
 
   const handleNewChat = () => {
     const conv = createConversation({
-      context: { activeResumeId: activeResumeId || null },
+      context: { activeResumeId: null, creating: false },
     });
     onSelectConversation(conv.id);
   };

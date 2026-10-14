@@ -45,7 +45,7 @@ export const config = {
     maxZipEntries: 2000,
     maxUncompressedBytes: 80 * 1024 * 1024,
     maxXmlPartBytes: 25 * 1024 * 1024,
-    jsonBodyLimit: '1mb',
+    jsonBodyLimit: '10mb',
   },
 
   rateLimit: {
@@ -65,7 +65,7 @@ export const config = {
     thresholdUsd: float('GLOBAL_THRESHOLD_USD', 4.0),
     reservedBalanceUsd: float('GLOBAL_RESERVED_USD', 1.0),
     defaultDailyLimit: int('DEFAULT_DAILY_REQUEST_LIMIT', 10),
-    maxOutputTokens: int('MAX_OUTPUT_TOKENS', 1500),
+    maxOutputTokens: int('MAX_OUTPUT_TOKENS', 4000),
   },
 
   ai: {
@@ -74,7 +74,7 @@ export const config = {
     model: rawModel,
     baseUrl: (process.env.AI_BASE_URL || (provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : '')).replace(/\/+$/, ''),
     timeoutMs: int('AI_TIMEOUT_MS', 60_000),
-    maxOutputTokens: int('MAX_OUTPUT_TOKENS', 1500),
+    maxOutputTokens: int('MAX_OUTPUT_TOKENS', 4000),
   },
 };
 

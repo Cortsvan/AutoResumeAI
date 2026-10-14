@@ -49,7 +49,7 @@ export async function verifyModelId(modelId) {
 /**
  * Provider adapter for OpenRouter with token controls and usage extraction.
  */
-export async function complete({ system, messages, maxTokens = 1500, temperature = 0.3, json = true }) {
+export async function complete({ system, messages, maxTokens = 4000, temperature = 0.3, json = true }) {
   const apiKey = config.ai.apiKey;
   const model = config.ai.model || 'deepseek/deepseek-v4.1-flash';
   const timeoutMs = config.ai.timeoutMs || 60000;
@@ -59,8 +59,8 @@ export async function complete({ system, messages, maxTokens = 1500, temperature
     throw new AppError(503, 'AI_NOT_CONFIGURED', 'OPENROUTER_API_KEY is not configured on the server.');
   }
 
-  // Enforce server-side 1,500 max output token limit
-  const effectiveMaxTokens = Math.min(Number(maxTokens) || 1500, 1500);
+  // Allow up to 4,000 max output tokens for full resume JSON structures
+  const effectiveMaxTokens = Math.min(Number(maxTokens) || 4000, 4000);
 
   const makeBody = (useJsonMode) => {
     const body = {

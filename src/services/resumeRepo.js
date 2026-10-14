@@ -1,4 +1,4 @@
-import { getState, getResume, patchResume, putResume, removeResumeRecord, updateConversation } from '../app/store.js';
+import { getState, getResume, patchResume, putResume, removeResumeRecord, updateConversation, setUi } from '../app/store.js';
 import { applyFieldEdits, emptyResumeData, flattenResumeFields } from '../features/resume-creation/model.js';
 import { api } from './api.js';
 import { db } from './db.js';
@@ -209,6 +209,9 @@ export async function deleteResume(id) {
   const ids = [resume.originalBlobId, ...resume.versions.map((v) => v.blobId)];
   removeResumeRecord(id);
   await dropBlobs(ids);
+  if (getState().ui.focusResumeId === id) {
+    setUi({ focusResumeId: null });
+  }
   for (const c of getState().conversations) {
     if (c.context.activeResumeId === id) {
       updateConversation(c.id, { context: { ...c.context, activeResumeId: null } }, { touch: false });

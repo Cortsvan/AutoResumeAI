@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore, setUi } from '../../app/store.js';
-import { blobForView, downloadResume, undoLastVersion } from '../../services/resumeRepo.js';
+import { blobForView, downloadResume, undoLastVersion, deleteResume } from '../../services/resumeRepo.js';
 import { DocxViewer } from './DocxViewer.jsx';
 import { ChangesList } from './ChangesList.jsx';
 import { StructuredEditor } from './StructuredEditor.jsx';
@@ -17,6 +17,7 @@ import {
   Layers,
   ChevronDown,
   ShieldAlert,
+  Trash2,
 } from 'lucide-react';
 
 export function DocxPreviewPanel({ resume, onOpenRedesignModal }) {
@@ -96,7 +97,7 @@ export function DocxPreviewPanel({ resume, onOpenRedesignModal }) {
           </div>
 
           {/* Download & Mobile Close */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Button
               size="sm"
               variant="primary"
@@ -109,9 +110,23 @@ export function DocxPreviewPanel({ resume, onOpenRedesignModal }) {
             </Button>
 
             <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Are you sure you want to delete "${resume.name}"? This action cannot be undone.`)) {
+                  deleteResume(resume.id);
+                }
+              }}
+              className="p-1.5 text-ink-muted hover:text-bad hover:bg-bad-soft rounded transition-colors"
+              title="Delete this resume"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
               onClick={() => setUi({ mobileView: 'chat', previewOpen: false })}
-              className="p-1.5 text-ink-muted hover:text-ink hover:bg-sunken rounded lg:hidden"
-              title="Back to chat"
+              className="p-1.5 text-ink-muted hover:text-ink hover:bg-sunken rounded transition-colors"
+              title="Close preview"
             >
               <X className="w-4 h-4" />
             </button>

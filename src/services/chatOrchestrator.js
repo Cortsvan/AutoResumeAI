@@ -10,10 +10,10 @@ import {
   updateQuota,
 } from '../app/store.js';
 import { api, ApiError } from './api.js';
-import { getFields, applyEditsToResume, applyResumeDataUpdate } from './resumeRepo.js';
+import { getFields, applyEditsToResume, applyResumeDataUpdate, createCreatedResume } from './resumeRepo.js';
 import { uid } from '../utils/ids.js';
 import { normalizeForCompare } from '../utils/textDiff.js';
-import { mergeResumeUpdate } from '../features/resume-creation/model.js';
+import { mergeResumeUpdate, emptyResumeData } from '../features/resume-creation/model.js';
 
 /**
  * Generates sensible, realistic demo suggestions mapped to the actual uploaded resume paragraphs
@@ -116,24 +116,34 @@ function generateDemoSuggestions(fields, jobTitle, jobDesc) {
 /**
  * Primary dispatch for sending a message in a conversation.
  */
-export async function sendMessage(conversationId, text, attachedDocxFile = null) {
+export async function sendMessage(conversationId, text, attachedDocxFile = null, attachedImages = []) {
   const state = getState();
   const conv = state.conversations.find((c) => c.id === conversationId);
   if (!conv) return;
 
   const userMessageText = text.trim();
-  if (!userMessageText && !attachedDocxFile) return;
+  const hasImages = Array.isArray(attachedImages) && attachedImages.length > 0;
+  if (!userMessageText && !attachedDocxFile && !hasImages) return;
 
   // Append user message
   appendMessage(conversationId, {
     role: 'user',
-    content: userMessageText || `Uploaded resume: ${attachedDocxFile?.name}`,
+    content:
+      userMessageText ||
+      (hasImages
+        ? attachedImages.length === 1
+          ? 'Shared screenshot reference'
+          : `Shared ${attachedImages.length} screenshot references`
+        : `Uploaded resume: ${attachedDocxFile?.name}`),
     attachment: attachedDocxFile ? { name: attachedDocxFile.name, size: attachedDocxFile.size } : null,
+    images: hasImages ? attachedImages : undefined,
   });
 
   // Auto-title conversation if title is still default
-  if (!conv.titleCustom && conv.messages.length <= 1 && userMessageText) {
-    const autoTitle = userMessageText.slice(0, 32).replace(/[^\w\s-]/g, '').trim() || 'Resume Chat';
+  if (!conv.titleCustom && conv.messages.length <= 1 && (userMessageText || hasImages)) {
+    const autoTitle =
+      userMessageText.slice(0, 32).replace(/[^\w\s-]/g, '').trim() ||
+      (hasImages ? 'Screenshot Reference' : 'Resume Chat');
     updateConversation(conversationId, { title: autoTitle });
   }
 
@@ -164,10 +174,31 @@ export async function sendMessage(conversationId, text, attachedDocxFile = null)
       });
     }
 
-    // If user has no resume attached and no active resume in conversation:
+    // If user has no resume attached yet, but provided screenshots: auto-bootstrap a draft resume
+    if (!activeResume && hasImages) {
+      try {
+        const newResume = await createCreatedResume({
+          name: 'Resume from Screenshot',
+          data: emptyResumeData(),
+        });
+        activeResume = newResume;
+        updateConversation(conversationId, {
+          context: {
+            ...conv.context,
+            activeResumeId: newResume.id,
+            creating: true,
+          },
+        });
+        toast('Created resume draft from screenshot.', 'info');
+      } catch (err) {
+        console.warn('Could not auto-create resume draft from screenshot:', err);
+      }
+    }
+
+    // If still no resume:
     if (!activeResume) {
       const replyContent =
-        "Welcome! To get started, please **upload your existing Word (.docx) resume** using the attachment button below, or select **'Create a resume from scratch'** to build one conversationally.\n\nOnce your resume is loaded, you can ask me to improve bullet points, tailor it to a target job description, or strengthen specific sections—all while preserving your original formatting.";
+        "Welcome! To get started, please **upload your existing Word (.docx) resume**, attach a **screenshot** of your resume or details to include, or select **'Create a resume from scratch'**.\n\nOnce your resume is loaded, you can ask me to improve bullet points, tailor it to a target job description, or strengthen specific sections—all while preserving your original formatting.";
 
       appendMessage(conversationId, {
         role: 'assistant',
@@ -201,7 +232,12 @@ export async function sendMessage(conversationId, text, attachedDocxFile = null)
         .map((m) => ({ role: m.role, content: m.content }));
 
       const payload = {
-        message: userMessageText,
+        message:
+          userMessageText ||
+          (hasImages
+            ? 'Please examine the attached screenshot(s) and extract relevant resume details or incorporate them into my resume.'
+            : 'Review resume'),
+        images: hasImages ? attachedImages.map((img) => img.dataUrl || img) : [],
         history,
         context: {
           mode: activeResume.mode || 'preserve',
@@ -263,7 +299,10 @@ export async function sendMessage(conversationId, text, attachedDocxFile = null)
       let demoAnalysis = null;
       let demoSuggestions = [];
 
-      if (/tailor|job|match|position|apply/i.test(userMessageText) || jobDesc) {
+      if (hasImages) {
+        demoReply = `I reviewed the ${attachedImages.length} screenshot(s) you attached.\n\n- **Extracted details:** Identified relevant career milestones, roles, and skills shown in the image(s).\n- **Preservation:** AutoResumeAI can transcribe these details into your resume without distorting your document structure.\n\nHere are suggestions generated from your reference:`;
+        demoSuggestions = generateDemoSuggestions(fields, jobTitle, jobDesc);
+      } else if (/tailor|job|match|position|apply/i.test(userMessageText) || jobDesc) {
         const targetRole = jobTitle || 'Target Position';
         demoReply = `I analyzed your resume against the requirements for **${targetRole}**.\n\n- **Identified strengths:** Relevant project work and foundational skills are already highlighted.\n- **Improvement areas:** Several bullet points use passive descriptions and could more assertively demonstrate specific competencies.\n- **Design preservation:** All edits below can be applied directly to a separate working copy of your DOCX without changing fonts or layout.`;
 

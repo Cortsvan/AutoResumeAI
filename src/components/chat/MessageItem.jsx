@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LiteMarkdown } from '../../utils/LiteMarkdown.jsx';
 import { SuggestionCard } from './SuggestionCard.jsx';
 import { AnalysisSummary } from './AnalysisSummary.jsx';
 import { Badge } from '../ui/Badge.jsx';
 import { Button } from '../ui/Button.jsx';
+import { ImageModal } from '../ui/ImageModal.jsx';
 import { formatBytes, relativeTime } from '../../utils/format.js';
-import { FileText, CheckCheck, Bot, User, Info } from 'lucide-react';
+import { FileText, CheckCheck, Bot, User, Info, Maximize2 } from 'lucide-react';
 import {
   acceptSuggestion,
   rejectSuggestion,
@@ -13,6 +14,7 @@ import {
 } from '../../services/chatOrchestrator.js';
 
 export function MessageItem({ message, conversationId }) {
+  const [selectedImage, setSelectedImage] = useState(null);
   const isUser = message.role === 'user';
   const suggestions = message.suggestions || [];
   const pendingCount = suggestions.filter((s) => s.status === 'pending').length;
@@ -72,6 +74,32 @@ export function MessageItem({ message, conversationId }) {
             </div>
           )}
 
+          {/* Attached screenshot thumbnails */}
+          {message.images && message.images.length > 0 && (
+            <div className="mb-3">
+              <div className="flex flex-wrap gap-2">
+                {message.images.map((img, i) => (
+                  <button
+                    key={img.id || i}
+                    type="button"
+                    onClick={() => setSelectedImage(img)}
+                    className="group relative block overflow-hidden rounded-md border border-white/25 bg-black/20 hover:border-accent focus:outline-none transition-all shadow-sm"
+                    title={`Click to enlarge ${img.name || 'screenshot'}`}
+                  >
+                    <img
+                      src={img.dataUrl}
+                      alt={img.name || 'Screenshot'}
+                      className="h-16 w-24 object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute inset-0 bg-ink/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Markdown message body */}
           <LiteMarkdown text={message.content} />
         </div>
@@ -128,6 +156,13 @@ export function MessageItem({ message, conversationId }) {
           <User className="w-4 h-4 text-ink-soft" />
         </div>
       )}
+
+      {/* Fullscreen Screenshot Modal */}
+      <ImageModal
+        isOpen={Boolean(selectedImage)}
+        onClose={() => setSelectedImage(null)}
+        image={selectedImage}
+      />
     </div>
   );
 }

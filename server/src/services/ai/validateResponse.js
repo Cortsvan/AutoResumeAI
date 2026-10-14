@@ -28,12 +28,12 @@ const analysisSchema = z.object({
 });
 
 export const aiResponseSchema = z.object({
-  reply: z.string().min(1).max(8000),
+  reply: z.string().min(1).max(12000).default('Here is your resume update:'),
   jobTitle: z.string().max(160).nullable().optional().default(null),
   jobDescriptionProvided: z.boolean().optional().default(false),
-  needs: z.array(z.enum(['resume', 'job_description'])).optional().default([]),
+  needs: z.array(z.string()).optional().default([]),
   analysis: analysisSchema.nullable().optional().default(null),
-  suggestions: z.array(z.unknown()).optional().default([]),
+  suggestions: z.union([z.array(z.unknown()), z.null()]).optional().transform((v) => (Array.isArray(v) ? v : [])),
   resumeUpdate: z.unknown().optional().default(null),
 });
 
@@ -150,12 +150,66 @@ export function validateSuggestions(rawList, { fields, mode, userTexts, jobDescr
 
 export function validateResumeUpdate(raw) {
   if (!raw || typeof raw !== 'object') return null;
+  const normalized = { ...raw };
+
+  if (Array.isArray(normalized.skills)) {
+    normalized.skills = normalized.skills.map((s, idx) => ({
+      id: s?.id || `sk_${idx}`,
+      label: typeof s?.label === 'string' ? s.label : 'Skills',
+      items: Array.isArray(s?.items) ? s.items.join(', ') : (typeof s?.items === 'string' ? s.items : ''),
+    }));
+  }
+
+  if (Array.isArray(normalized.experience)) {
+    normalized.experience = normalized.experience.map((e, idx) => ({
+      id: e?.id || `exp_${idx}`,
+      title: e?.title || '',
+      company: e?.company || '',
+      location: e?.location || '',
+      start: e?.start || '',
+      end: e?.end || '',
+      bullets: Array.isArray(e?.bullets) ? e.bullets : (typeof e?.bullets === 'string' && e.bullets ? [e.bullets] : []),
+    }));
+  }
+
+  if (Array.isArray(normalized.projects)) {
+    normalized.projects = normalized.projects.map((p, idx) => ({
+      id: p?.id || `proj_${idx}`,
+      name: p?.name || '',
+      link: p?.link || '',
+      tech: p?.tech || '',
+      description: p?.description || '',
+      bullets: Array.isArray(p?.bullets) ? p.bullets : (typeof p?.bullets === 'string' && p.bullets ? [p.bullets] : []),
+    }));
+  }
+
+  if (Array.isArray(normalized.education)) {
+    normalized.education = normalized.education.map((ed, idx) => ({
+      id: ed?.id || `edu_${idx}`,
+      school: ed?.school || '',
+      degree: ed?.degree || '',
+      location: ed?.location || '',
+      start: ed?.start || '',
+      end: ed?.end || '',
+      details: Array.isArray(ed?.details) ? ed.details : (typeof ed?.details === 'string' && ed.details ? [ed.details] : []),
+    }));
+  }
+
+  if (Array.isArray(normalized.certifications)) {
+    normalized.certifications = normalized.certifications.map((c, idx) => ({
+      id: c?.id || `cert_${idx}`,
+      name: c?.name || '',
+      issuer: c?.issuer || '',
+      date: c?.date || '',
+    }));
+  }
+
   // Allow partial objects: validate each provided key against the full schema's shape.
   const shape = resumeDataSchema.shape;
   const result = {};
   for (const key of Object.keys(shape)) {
-    if (!(key in raw)) continue;
-    const parsed = shape[key].safeParse(raw[key]);
+    if (!(key in normalized)) continue;
+    const parsed = shape[key].safeParse(normalized[key]);
     if (parsed.success) result[key] = parsed.data;
   }
   return Object.keys(result).length ? result : null;
