@@ -117,7 +117,10 @@ export async function listUsers(req, res, next) {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
-    const search = String(req.query.search || '').trim().toLowerCase();
+    const search = String(req.query.search || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^\w@.\s-]/g, '');
     const status = String(req.query.status || '').trim().toLowerCase();
     const role = String(req.query.role || '').trim().toLowerCase();
     const unlimited = req.query.unlimited;
