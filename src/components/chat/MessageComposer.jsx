@@ -91,6 +91,11 @@ export function MessageComposer({
       setIsUploading(true);
       try {
         const imported = await importDocxFile(attachedFile);
+        if (conversationId) {
+          updateConversation(conversationId, (c) => ({
+            context: { ...c.context, activeResumeId: imported.id, creating: false },
+          }));
+        }
         toast(`Imported "${attachedFile.name}" as active resume.`, 'success');
         setUi({ focusResumeId: imported.id, previewOpen: true });
       } catch (err) {

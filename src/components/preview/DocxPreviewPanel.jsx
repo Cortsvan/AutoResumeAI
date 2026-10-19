@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useStore, setUi } from '../../app/store.js';
-import { blobForView, downloadResume, undoLastVersion, deleteResume } from '../../services/resumeRepo.js';
+import { useStore, setUi, toast } from '../../app/store.js';
+import { blobForView, downloadResume, undoLastVersion, deleteResume, applyEditsToResume } from '../../services/resumeRepo.js';
 import { DocxViewer } from './DocxViewer.jsx';
 import { ChangesList } from './ChangesList.jsx';
 import { StructuredEditor } from './StructuredEditor.jsx';
@@ -70,6 +70,22 @@ export function DocxPreviewPanel({ resume, onOpenRedesignModal }) {
   const versions = resume.versions || [];
   const features = resume.features || {};
   const notes = resume.notes || [];
+
+  const handleSaveEdits = async (edits) => {
+    try {
+      const res = await applyEditsToResume(resume.id, edits, { label: 'Manual edit in preview', source: 'user' });
+      const failed = res.results.filter((r) => r.status !== 'applied');
+      if (res.applied > 0 && !failed.length) {
+        toast(`Saved ${res.applied} edit${res.applied === 1 ? '' : 's'} to your Word document.`, 'success');
+      } else if (res.applied > 0) {
+        toast(`Saved ${res.applied} edit(s); ${failed.length} could not be applied: ${failed[0].message}`, 'warn');
+      } else {
+        toast(failed[0]?.message || 'No changes could be applied.', 'error');
+      }
+    } catch (err) {
+      toast(err.message || 'Could not save your edits.', 'error');
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-paper min-w-0 border-l border-line">
@@ -192,6 +208,9 @@ export function DocxPreviewPanel({ resume, onOpenRedesignModal }) {
             blob={blob}
             resumeName={resume.name}
             isOriginal={viewing === 'original'}
+            paragraphs={resume.paragraphs}
+            canEdit={resume.kind === 'imported' && viewing === 'current'}
+            onSaveEdits={handleSaveEdits}
           />
         )}
 

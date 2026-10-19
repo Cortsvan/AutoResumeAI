@@ -45,21 +45,34 @@ function AppContent() {
     // 1. Initialize local IndexedDB store
     initStore();
 
-    // 2. Query backend configuration to detect live AI vs demo mode
-    api.getConfig()
-      .then((cfg) => {
-        setServerConfig(cfg, true);
-      })
-      .catch((err) => {
-        console.warn('Backend not reachable; running in local offline demo mode:', err);
-        setServerConfig(
-          {
-            ai: { configured: false },
-            limits: { maxUploadMb: 5, maxMessageChars: 12000, maxJobDescriptionChars: 15000 },
-          },
-          false,
-        );
-      });
+    // 2. Query backend configuration to detect live AI vs demo mode.
+    //    Retries while the API is unreachable (e.g. it is still starting) so no manual refresh is needed.
+    let cancelled = false;
+    let timer = null;
+    const loadConfig = () => {
+      api.getConfig()
+        .then((cfg) => {
+          if (!cancelled) setServerConfig(cfg, true);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          console.warn('Backend not reachable; running in local offline demo mode:', err);
+          setServerConfig(
+            {
+              ai: { configured: false },
+              limits: { maxUploadMb: 5, maxMessageChars: 12000, maxJobDescriptionChars: 15000 },
+            },
+            false,
+          );
+          timer = setTimeout(loadConfig, 5000);
+        });
+    };
+    loadConfig();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, []);
 
   if (!ready) {
