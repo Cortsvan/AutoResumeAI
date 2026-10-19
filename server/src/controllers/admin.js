@@ -50,32 +50,53 @@ export async function getOverview(_req, res, next) {
     // Aggregate AI usage stats
     const { data: usageAgg } = await supabase
       .from('daily_usage')
-      .select('request_count, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd');
+      .select('usage_date, request_count, prompt_tokens, completion_tokens, total_tokens, estimated_cost_usd');
 
+    const todayStr = new Date().toISOString().slice(0, 10);
     let totalRequests = 0;
     let totalTokens = 0;
     let totalCalculatedCost = 0;
+    let todayRequests = 0;
+    let todayTokens = 0;
+    let todayCostUsd = 0;
 
     if (Array.isArray(usageAgg)) {
       for (const row of usageAgg) {
         totalRequests += row.request_count || 0;
         totalTokens += row.total_tokens || 0;
         totalCalculatedCost += Number(row.estimated_cost_usd || 0);
+        if (row.usage_date === todayStr) {
+          todayRequests += row.request_count || 0;
+          todayTokens += row.total_tokens || 0;
+          todayCostUsd += Number(row.estimated_cost_usd || 0);
+        }
       }
     }
 
+    const status = budgetStatus.isPaused || budgetStatus.isThresholdReached ? 'hard_stop' : 'ok';
+
     res.json({
-      budget: budgetStatus,
-      users: {
-        total: totalUsers || 0,
-        active: activeUsers || 0,
-        suspended: suspendedUsers || 0,
-        unlimited: unlimitedUsers || 0,
+      budget: {
+        status,
+        configured: budgetStatus.configured,
+        is_paused: budgetStatus.isPaused,
+        total_budget_usd: budgetStatus.totalBudgetUsd,
+        hard_stop_threshold_usd: budgetStatus.thresholdUsd,
+        reserved_balance_usd: budgetStatus.reservedBalanceUsd,
+        total_spent_usd: budgetStatus.totalSpentUsd,
+        reserved_inflight_usd: budgetStatus.reservedInflightUsd || 0,
       },
-      usage: {
+      stats: {
+        totalUsers: totalUsers || 0,
+        activeUsers: activeUsers || 0,
+        suspendedUsers: suspendedUsers || 0,
+        unlimitedUsers: unlimitedUsers || 0,
+        todayRequests,
+        todayTokens,
+        todayCostUsd: Number(todayCostUsd.toFixed(4)),
         totalRequests,
         totalTokens,
-        totalCalculatedCost: Number(totalCalculatedCost.toFixed(4)),
+        totalCostUsd: Number(totalCalculatedCost.toFixed(4)),
       },
     });
   } catch (err) {
@@ -142,23 +163,28 @@ export async function listUsers(req, res, next) {
           usageByUser[row.user_id].cost += Number(row.estimated_cost_usd || 0);
 
           if (row.usage_date === todayStr) {
-            todayUsageByUser[row.user_id] = row.request_count || 0;
+            todayUsageByUser[row.user_id] = {
+              requests: row.request_count || 0,
+              cost: Number(row.estimated_cost_usd || 0),
+            };
           }
         }
       }
     }
 
-    const items = (profiles || []).map((p) => {
+    const users = (profiles || []).map((p) => {
       const u = usageByUser[p.id] || { requests: 0, tokens: 0, cost: 0 };
+      const t = todayUsageByUser[p.id] || { requests: 0, cost: 0 };
       return {
         id: p.id,
         email: p.email,
         role: p.role,
-        accountStatus: p.account_status,
-        isUnlimited: p.is_unlimited,
-        dailyLimit: p.daily_limit,
-        createdAt: p.created_at,
-        todayRequests: todayUsageByUser[p.id] || 0,
+        account_status: p.account_status,
+        is_unlimited: p.is_unlimited,
+        daily_limit: p.daily_limit,
+        created_at: p.created_at,
+        todayRequests: t.requests,
+        todayCostUsd: Number(t.cost.toFixed(4)),
         totalRequests: u.requests,
         totalTokens: u.tokens,
         totalCostUsd: Number(u.cost.toFixed(4)),
@@ -166,13 +192,11 @@ export async function listUsers(req, res, next) {
     });
 
     res.json({
-      items,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
-      },
+      users,
+      total: count || 0,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil((count || 0) / limit)),
     });
   } catch (err) {
     next(err);

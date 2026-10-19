@@ -154,6 +154,27 @@ export function AdminDashboard() {
     }
   };
 
+  // Handle Role Change: Promote / Demote admin
+  const handleToggleRole = async (targetUser) => {
+    const nextRole = targetUser.role === 'admin' ? 'user' : 'admin';
+    const confirmMsg =
+      nextRole === 'admin'
+        ? `Promote ${targetUser.email} to administrator? They will gain full control of this dashboard.`
+        : `Remove administrator role from ${targetUser.email}?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setActionLoading(true);
+    try {
+      await api.admin.updateUser(targetUser.id, { role: nextRole });
+      toast(`${targetUser.email} is now ${nextRole === 'admin' ? 'an administrator' : 'a standard user'}`, 'ok');
+      fetchData();
+    } catch (err) {
+      toast(err.message || 'Failed to update role', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Handle Daily Quota Save
   const handleSaveDailyLimit = async () => {
     if (!editLimitUser) return;
@@ -631,6 +652,19 @@ export function AdminDashboard() {
                                 title={u.account_status === 'suspended' ? 'Reactivate' : 'Suspend user'}
                               >
                                 {u.account_status === 'suspended' ? 'Reactivate' : 'Suspend'}
+                              </Button>
+                            )}
+
+                            {/* Promote / Demote Admin */}
+                            {u.id !== profile?.id && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={actionLoading}
+                                onClick={() => handleToggleRole(u)}
+                                className="h-7 text-[11px] px-2 text-ink-muted hover:text-ink"
+                              >
+                                {isTargetAdmin ? 'Remove Admin' : 'Make Admin'}
                               </Button>
                             )}
 
