@@ -49,11 +49,6 @@ Unlike traditional tools that convert documents to lossy HTML or plain text, Aut
    - Instant visual rendering of native `.docx` files directly in the browser via `docx-preview`.
    - Full version history checkpoints with one-click undo/redo for all accepted edits.
    - Export standard, genuine `.docx` files ready for direct employer submission or ATS scanning.
-
-6. **Out-of-the-Box Demo Mode**:
-   - Operates in complete **Demo Mode** without requiring any paid AI keys.
-   - Simulates realistic, professional suggestion diffs and allows full DOCX editing, preview, and download.
-
 ---
 
 ## Architecture & Tech Stack
@@ -109,7 +104,7 @@ To prevent runaway billing and API overages, AutoResumeAI incorporates a **three
 ┌─────────────────────────────────────────────────────────────┐
 │ Tier 1: User-Level Quotas                                  │
 │ - Standard Users: 10 requests / 24-hr UTC window            │
-│ - Max Output Tokens: 1,500 tokens per suggestion            │
+│ - Max Output Tokens: 8000 tokens per suggestion            │
 │ - Admins / Unlimited Accounts: Daily personal limit bypassed│
 └─────────────────────────────────────────────────────────────┘
           │ (Quota OK)
